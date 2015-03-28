@@ -1,0 +1,59 @@
+LatLRR <- function(X,lambda=1,rho=1.1,e=1e-6)
+{
+M <- dim(X)[2]
+N<-dim(X)[1]
+Z <- matrix(runif(M*N)/M/N,ncol=M,nrow=M)
+J<-Z
+L<- matrix(runif(M*N)/M/N,ncol=N,nrow=N)
+S<-L
+E <-matrix(runif(M*N)/M/N,ncol=M,nrow=N)
+Y2 <- Z
+Y3 <- L
+Y1 <- E
+mu <- 1e-6
+maxu <- 1e6
+repeat
+{
+SVD1 <- try(svd(Z+Y2/mu))
+SVD2 <- try(svd(L+Y3/mu))
+if (class(SVD1)!="try-error" & class(SVD2)!="try-error")
+{
+SVD <- SVD1
+SVD$d[SVD$d<1/mu]<-0
+SVD$d[SVD$d>1/mu]<-SVD$d[SVD$d>1/mu] -1/mu
+J <- SVD$u %*% diag(SVD$d) %*% t(SVD$v)
+SVD <- SVD2
+SVD$d[SVD$d<1/mu]<-0
+SVD$d[SVD$d>1/mu]<-SVD$d[SVD$d>1/mu] -1/mu
+S <- SVD$u %*% diag(SVD$d) %*% t(SVD$v)
+Z <- solve(diag(rep(1,M))+ t(X) %*% X) %*% (t(X) %*% (X - L %*% X -E)+J+(t(X) %*% Y1 - Y2)/mu)
+L <- ((X-X %*% Z -E) %*% t(X) + S + (Y1%*% t(X)-Y3)/mu) %*% solve(diag(rep(1,N)) +X %*% t(X))
+E <- X - X %*% Z - L %*% X +Y1/mu
+cat(max(abs(E)),",",lambda/mu,":")
+E1 <- E
+E1[E> lambda/mu] <- E[E> lambda/mu]- lambda/mu
+E1[E< -lambda/mu] <- E[E< -lambda/mu]+ lambda/mu
+E1[abs(E) < lambda/mu] <-0 
+E<-E1
+Y1 <- Y1 + mu*(X-X %*% Z - L %*% X -E)
+Y2 <- Y2 + mu*(Z-J)
+Y3 <- Y3 + mu*(L-S)
+mu <- min(rho*mu,maxu)
+e1 <- max(abs(X- X%*%Z - L %*% X -E))
+e2 <- max(abs(Z-J))
+e3 <- max(abs(L-S))
+cat(e1," ",e2," ",e3,"\n")
+if ( e1<e & e2<e & e3<e ) break
+} else {
+Z <- matrix(runif(M*N)/M/N,ncol=M,nrow=M)
+J<-Z
+L<- matrix(runif(M*N)/M/N,ncol=N,nrow=N)
+S<-L
+E <-matrix(runif(M*N)/M/N,ncol=M,nrow=N)
+Y2 <- Z
+Y3 <- L
+Y1 <- E
+}
+} 
+return(list(Z,L,E))
+}
